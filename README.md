@@ -1,2 +1,1 @@
-# vntl-renpy-compiler
-VNTl Ren'Py Compiler
+# VNTl Ren'Py Compiler
