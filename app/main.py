@@ -26,7 +26,7 @@ from app.processors.pack import pack_rpa_from_dir
 
 APP_NAME = "VNTl RenPy Compiler"
 JOB_TTL_SECONDS = int(os.environ.get("JOB_TTL_SECONDS", "3600"))
-MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "11111"))
+MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "200"))
 
 app = FastAPI(title=APP_NAME)
 
