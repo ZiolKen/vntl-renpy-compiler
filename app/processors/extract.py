@@ -31,23 +31,35 @@ def extract_rpi_with_rpatool(rpi_files: List[Path], input_dir: Path, out_dir: Pa
     cmd = which_any(["rpatool"]) or "rpatool"
 
     for rpi in rpi_files:
-        matching = input_dir / f"{rpi.stem}.rpa"
-        if not matching.exists():
-            logs.append(f"[rpatool] Missing matching data archive for {rpi.name}. Please also upload {rpi.stem}.rpa")
-            continue
-
         target = out_dir / f"rpi_extract/{rpi.stem}"
         target.mkdir(parents=True, exist_ok=True)
 
-        args = [cmd, "-o", str(target), "-x", str(matching)]
-        code, out, err = run_cmd(args, timeout_s=300)
-        logs.append(f"$ {' '.join(args)}")
-        if out.strip(): logs.append(out)
-        if err.strip(): logs.append(err)
+        # Most rpatool usages operate directly on the archive path.
+        # Some games ship a separate .rpi alongside a .rpa; tool support varies.
+        # We try .rpi first, then fall back to matching .rpa if present.
+        tried: List[Path] = []
+
+        def _try_extract(archive: Path) -> int:
+            args = [cmd, "-o", str(target), "-x", str(archive)]
+            code, out, err = run_cmd(args, timeout_s=300)
+            logs.append(f"$ {' '.join(args)}")
+            if out.strip(): logs.append(out)
+            if err.strip(): logs.append(err)
+            return code
+
+        code = _try_extract(rpi)
+        tried.append(rpi)
+
+        if code != 0:
+            matching = input_dir / f"{rpi.stem}.rpa"
+            if matching.exists() and matching not in tried:
+                logs.append(f"[rpatool] .rpi extract failed; trying matching data archive: {matching.name}")
+                code = _try_extract(matching)
+                tried.append(matching)
 
         if code == 0:
             produced_dirs.append(target)
         else:
-            logs.append(f"[rpatool] failed ({code}) for {matching.name}")
+            logs.append(f"[rpatool] failed ({code}) for {', '.join(p.name for p in tried)}")
 
     return produced_dirs, logs
