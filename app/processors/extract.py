@@ -33,10 +33,6 @@ def extract_rpi_with_rpatool(rpi_files: List[Path], input_dir: Path, out_dir: Pa
     for rpi in rpi_files:
         target = out_dir / f"rpi_extract/{rpi.stem}"
         target.mkdir(parents=True, exist_ok=True)
-
-        # Most rpatool usages operate directly on the archive path.
-        # Some games ship a separate .rpi alongside a .rpa; tool support varies.
-        # We try .rpi first, then fall back to matching .rpa if present.
         tried: List[Path] = []
 
         def _try_extract(archive: Path) -> int:
