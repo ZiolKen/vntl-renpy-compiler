@@ -6,4 +6,3 @@ pydantic==2.8.2
 
 unrpa==2.3.0
 git+https://github.com/CensoredUsername/unrpyc.git
-git+https://github.com/Shizmob/rpatool.git

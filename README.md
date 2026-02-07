@@ -6,6 +6,9 @@ API server for:
 - Extract `.rpi` (usually index) with **rpatool**
 - Pack/Repack `.rpa` from any folder (after edits) with **rpatool**
 
+Note: `rpatool` is vendored as a standalone script under `vendor/rpatool` because
+the upstream project is not packaged for pip (no `setup.py`/`pyproject.toml`).
+
 > Legal note: use only with files you own / have permission to modify.
 
 ## Run locally

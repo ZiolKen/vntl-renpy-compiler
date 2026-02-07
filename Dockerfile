@@ -10,6 +10,11 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY app /app/app
 
+# rpatool upstream is a standalone script (no pyproject/setup.py), so pip cannot
+# install it from the git repo. Vendor the script and place it on PATH.
+COPY vendor/rpatool /usr/local/bin/rpatool
+RUN chmod +x /usr/local/bin/rpatool
+
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
