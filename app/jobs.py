@@ -3,7 +3,7 @@ import os, time, uuid, shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-JOB_ROOT = Path(os.environ.get("JOB_ROOT", "/tmp/renpy-web-tool-jobs")).resolve()
+JOB_ROOT = Path(os.environ.get("JOB_ROOT", "/tmp/renpy-compiler")).resolve()
 JOB_ROOT.mkdir(parents=True, exist_ok=True)
 
 def now_s() -> int:

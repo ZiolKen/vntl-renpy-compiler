@@ -150,39 +150,28 @@ def process_job(
     if not jp.root.exists():
         raise HTTPException(status_code=404, detail="Job not found")
 
-    if jp.out.exists():
-        shutil.rmtree(jp.out, ignore_errors=True)
-    jp.out.mkdir(parents=True, exist_ok=True)
+    # Only wipe the output dir when this run is going to (re)populate it from
+    # scratch. mode="pack_rpa" with pack_source_where="output" reads FROM the
+    # existing output (e.g. pack up files you already decompiled/edited) —
+    # wiping it first, as the old code always did, meant that combination
+    # always failed with "Source directory not found/empty", even though it
+    # looked like a valid, supported option in the API.
+    wipe_output = not (mode == "pack_rpa" and pack_source_where == "output")
+    if wipe_output:
+        if jp.out.exists():
+            shutil.rmtree(jp.out, ignore_errors=True)
+        jp.out.mkdir(parents=True, exist_ok=True)
+    else:
+        jp.out.mkdir(parents=True, exist_ok=True)
 
     logs: list[str] = []
     touch_meta(job_id)
 
-    rpyc_files = list(jp.inp.rglob("*.rpyc"))
-    rpa_files = list(jp.inp.rglob("*.rpa"))
-    rpi_files = list(jp.inp.rglob("*.rpi"))
-
-    if mode in ("auto", "decompile"):
-        if rpyc_files:
-            _, l = decompile_rpyc_files(rpyc_files, jp.out, try_harder=try_harder)
-            logs += l
-        else:
-            logs.append("[decompile] No .rpyc files found.")
-
-    if mode in ("auto", "extract_rpa"):
-        if rpa_files:
-            _, l = extract_rpa_with_unrpa(rpa_files, jp.out)
-            logs += l
-        else:
-            logs.append("[extract_rpa] No .rpa files found.")
-
-    if mode in ("auto", "extract_rpi"):
-        if rpi_files:
-            _, l = extract_rpi_with_rpatool(rpi_files, jp.inp, jp.out)
-            logs += l
-        else:
-            logs.append("[extract_rpi] No .rpi files found.")
-
-    if mode in ("auto", "pack_rpa"):
+    # "pack_rpa" builds an archive FROM a folder the user points at — it is a
+    # deliberate action, never something "auto" should trigger on its own.
+    # (Previously auto always ran pack_rpa on the whole input dir, which is
+    # why every auto run spammed an _packroot copy of the entire input.)
+    if mode == "pack_rpa":
         base = jp.inp if pack_source_where == "input" else jp.out
         rel = ensure_safe_relpath_allow_empty(pack_source_path)
         source_dir = (base / rel).resolve()
@@ -199,6 +188,37 @@ def process_job(
         logs += l
         if out_path:
             logs.append(f"[pack] created: {out_path.name}")
+        return ProcessResponse(job_id=job_id, mode=mode, output_tree=walk_tree(jp.out), logs=logs)
+
+    # auto / decompile / extract_rpa / extract_rpi: detect what's actually in
+    # the input and only run the matching tool(s) for those file types.
+    rpyc_files = list(jp.inp.rglob("*.rpyc"))
+    rpa_files = list(jp.inp.rglob("*.rpa"))
+    rpi_files = list(jp.inp.rglob("*.rpi"))
+
+    if mode in ("auto", "decompile"):
+        if rpyc_files:
+            _, l = decompile_rpyc_files(rpyc_files, jp.inp, jp.out, try_harder=try_harder)
+            logs += l
+        elif mode == "decompile":
+            logs.append("[decompile] No .rpyc files found.")
+
+    if mode in ("auto", "extract_rpa"):
+        if rpa_files:
+            _, l = extract_rpa_with_unrpa(rpa_files, jp.out)
+            logs += l
+        elif mode == "extract_rpa":
+            logs.append("[extract_rpa] No .rpa files found.")
+
+    if mode in ("auto", "extract_rpi"):
+        if rpi_files:
+            _, l = extract_rpi_with_rpatool(rpi_files, jp.inp, jp.out)
+            logs += l
+        elif mode == "extract_rpi":
+            logs.append("[extract_rpi] No .rpi files found.")
+
+    if mode == "auto" and not (rpyc_files or rpa_files or rpi_files):
+        logs.append("[auto] No .rpyc/.rpa/.rpi files found in input. Nothing to do.")
 
     return ProcessResponse(job_id=job_id, mode=mode, output_tree=walk_tree(jp.out), logs=logs)
 
